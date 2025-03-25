@@ -33,8 +33,8 @@ curl http://localhost:3000/referral-indices
 
 # Response Time
 
-api-1 | 17:17:05 | 200 | 745.776µs | 172.22.0.1 | GET | /referral-indices | -
-api-1 | 17:17:12 | 200 | 9.585µs | 172.22.0.1 | GET | /referral-indices | -
+**api-1 | 17:17:05 | 200 | 745.776µs | 172.22.0.1 | GET | /referral-indices**
+**api-1 | 17:17:12 | 200 | 9.585µs | 172.22.0.1 | GET | /referral-indices**
 
 - 745.776µs is less than 1 millisecond, its 3/4 of a millisecond
 - As for the second request here, it used the cache, thats why its about 80x times faster
