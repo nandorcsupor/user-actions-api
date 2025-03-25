@@ -101,50 +101,60 @@ func GetNextActionBreakdown(c *fiber.Ctx) error {
 
 // GetReferralIndices returns the referral index for all users
 func GetReferralIndices(c *fiber.Ctx) error {
-	referralGraph := make(map[int][]int)
-	
-	for _, action := range storage.Actions {
-		if action.Type == "REFER_USER" && action.TargetUser != 0 {
-			referralGraph[action.UserID] = append(referralGraph[action.UserID], action.TargetUser)
-		}
-	}
+    referralGraph := make(map[int][]int)
+    
+    hasBeenReferred := make(map[int]bool)
+    
+    for _, action := range storage.Actions {
+        if action.Type == "REFER_USER" && action.TargetUser != 0 {
+            // Only add if the target hasn't been referred yet
+            if !hasBeenReferred[action.TargetUser] {
+                referralGraph[action.UserID] = append(referralGraph[action.UserID], action.TargetUser)
+                hasBeenReferred[action.TargetUser] = true
+            }
+        }
+    }
 
-	referralIndices := make(types.ReferralIndexResponse)
-	
-	for _, user := range storage.Users {
-		referralIndices[user.ID] = 0
-	}
-	
-	visited := make(map[int]bool)
-	
-	var countReferrals func(userID int) int
-	countReferrals = func(userID int) int {
-		if count, exists := referralIndices[userID]; exists && count > 0 {
-			return count
-		}
-		
-		visited[userID] = true
-		
-		count := len(referralGraph[userID])
-		
-		for _, referredUserID := range referralGraph[userID] {
-			if !visited[referredUserID] {
-				count += countReferrals(referredUserID)
-			}
-		}
-		
-		referralIndices[userID] = count
-		
-		visited[userID] = false
-		
-		return count
-	}
-	
-	for _, user := range storage.Users {
-		if !visited[user.ID] {
-			countReferrals(user.ID)
-		}
-	}
-	
-	return c.JSON(referralIndices)
+    referralIndices := make(types.ReferralIndexResponse)
+    for _, user := range storage.Users {
+        referralIndices[user.ID] = 0
+    }
+    
+    memo := make(map[int]int)
+    
+    inCurrentPath := make(map[int]bool)
+    
+    var dfs func(int) int
+    dfs = func(userID int) int {
+        if count, exists := memo[userID]; exists {
+            return count
+        }
+        
+        if inCurrentPath[userID] {
+            return 0
+        }
+        
+        inCurrentPath[userID] = true
+        
+        count := len(referralGraph[userID])
+        
+        for _, referredUserID := range referralGraph[userID] {
+            count += dfs(referredUserID)
+        }
+        
+        memo[userID] = count
+        referralIndices[userID] = count
+        
+        inCurrentPath[userID] = false
+        
+        return count
+    }
+    
+    for _, user := range storage.Users {
+        if _, exists := memo[user.ID]; !exists {
+            dfs(user.ID)
+        }
+    }
+    
+    return c.JSON(referralIndices)
 }
